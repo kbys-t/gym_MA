@@ -8,7 +8,7 @@
 
 ```bash
 git clone https://github.com/kbys-t/gym_MA.git
-cd gym_MO
+cd gym_MA
 pip install -e .
 ```
 
@@ -16,7 +16,7 @@ pip install -e .
 1. First of all,
 `import gym_multiagent`
 
-1. Select environment from `["MoveFormMA-v0"]`
+1. Select environment from `["MoveFormMA-v0", "MoveFormMA-v1"]`
 ```python
 ENV_NAME = "MoveFormMA-v0"
 env = gym.make(ENV_NAME)
@@ -24,11 +24,16 @@ env = gym.make(ENV_NAME)
 
 1. Prepare agents
 ```python
-
+age = []
+for i in range(env.AGE_NUM):
+    age.append( some_agent() )
 ```
 
-1. Send actions and Get observations and rewards for all agents together
+1. Send listed actions and Get listed observations and rewards for all agents together
 ```python
-action = np.concatenate((action, objective))
 observation, reward, done, info = env.step(action)
+for i in range(env.AGE_NUM):
+    age[i].set_State(observation[i])
+    age[i].update(reward[i])
+    action[i] = age[i].get_Action()
 ```
