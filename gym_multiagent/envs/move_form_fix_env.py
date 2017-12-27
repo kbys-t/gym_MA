@@ -31,7 +31,7 @@ class MoveFormFixEnv(gym.Env):
         # for multi agents
         self.AGE_NUM = 3
         self.AGE_TASK = [0, 1, 2]
-        self.AGE_GAIN = [1.0, 1.0, 0.5]
+        self.AGE_GAIN = [1.0, 1.0, 1.0]
 
         # Create spaces
         self.action_space = []
