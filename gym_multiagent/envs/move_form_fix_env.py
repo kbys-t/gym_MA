@@ -7,6 +7,7 @@ Goal is fixed on random point
 import gym
 from gym import spaces
 from gym.utils import seeding
+from gym.envs.classic_control import rendering
 import numpy as np
 
 class MoveFormFixEnv(gym.Env):
@@ -41,8 +42,6 @@ class MoveFormFixEnv(gym.Env):
                 high_a = np.array([self.MAX_VEL, self.MAX_ANG_VEL])
                 high_s = np.array([self.MAX_POS, self.MAX_POS, 1.0, 1.0])
                 low_s = - np.array([self.MAX_POS, self.MAX_POS, 1.0, 1.0])
-                # high_s = np.array([self.MAX_POS, self.MAX_POS, 1.0, 1.0, 2.0*self.MAX_POS, 2.0*self.MAX_POS])
-                # low_s = - np.array([self.MAX_POS, self.MAX_POS, 1.0, 1.0, 2.0*self.MAX_POS, 2.0*self.MAX_POS])
                 self.action_space.append(spaces.Box(-high_a, high_a))
                 self.observation_space.append(spaces.Box(low_s, high_s))
             else:
@@ -53,14 +52,14 @@ class MoveFormFixEnv(gym.Env):
                 self.observation_space.append(spaces.Box(low_s, high_s))
 
         # Initialize
-        self._seed()
+        self.seed()
         self.viewer = None
 
-    def _seed(self, seed=None):
+    def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def _reset(self):
+    def reset(self):
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(self.AGE_NUM, 7))
         self.target = self.np_random.uniform(low=-0.25, high=0.25, size=(2, 1))
         self.target[0] += self.MAX_POS - 0.25
@@ -68,7 +67,7 @@ class MoveFormFixEnv(gym.Env):
             self.state[i, 3:] = self._measure(i)
         return self._get_obs()
 
-    def _step(self, action):
+    def step(self, action):
         s = self.state
         a = np.array([ [np.clip(action[i][0], -self.MAX_VEL, self.MAX_VEL), np.clip(action[i][1], -self.MAX_ANG_VEL, self.MAX_ANG_VEL)] for i in range(self.AGE_NUM) ])
         # update the position of each agent
@@ -76,7 +75,7 @@ class MoveFormFixEnv(gym.Env):
             ns = self._dynamics(s[i, 0:3], a[i], self.DT)
             ns[0] = np.clip(ns[0], -self.MAX_POS, self.MAX_POS)
             ns[1] = np.clip(ns[1], -self.MAX_POS, self.MAX_POS)
-            ns[2] = angle_normalize(ns[2])
+            ns[2] = self._angle_normalize(ns[2])
             self.state[i, 0:3] = ns
 
         # update the target position
@@ -92,7 +91,7 @@ class MoveFormFixEnv(gym.Env):
         for i in range(self.AGE_NUM):
             reward[i] = self._get_reward(self.AGE_TASK[i], self.AGE_GAIN[i], self.state[i], a[i])
 
-        return (self._get_obs(), reward, done, {})
+        return self._get_obs(), reward, done, {}
 
     def _get_obs(self):
         s = self.state
@@ -100,7 +99,6 @@ class MoveFormFixEnv(gym.Env):
         for i in range(self.AGE_NUM):
             if self.AGE_TASK[i] == 0:
                 rtv.append( np.array([ s[i,3], s[i,4], np.cos(s[i,2]), np.sin(s[i,2]) ]) )
-                # rtv.append( np.array([ s[i,0], s[i,1], np.cos(s[i,2]), np.sin(s[i,2]), s[i,3], s[i,4] ]) )
             else:
                 rtv.append( np.array([ s[i,3], np.cos(s[i,4]), np.sin(s[i,4]), s[i,5], np.cos(s[i,6]), np.sin(s[i,6]) ]) )
         return rtv
@@ -129,7 +127,7 @@ class MoveFormFixEnv(gym.Env):
             for i in range(self.AGE_NUM):
                 if i != num:
                     rtv[addnum*2] = np.linalg.norm(self.state[i, 0:2] - self.state[num, 0:2])
-                    rtv[addnum*2+1] = angle_normalize( np.arctan2(self.state[i, 1]-self.state[num, 1], self.state[i, 0]-self.state[num, 0]) - self.state[num, 2] )
+                    rtv[addnum*2+1] = self._angle_normalize( np.arctan2(self.state[i, 1]-self.state[num, 1], self.state[i, 0]-self.state[num, 0]) - self.state[num, 2] )
                     addnum += 1
         return rtv.reshape((-1,))
 
@@ -153,20 +151,15 @@ class MoveFormFixEnv(gym.Env):
             rtv = 1.0 - ( np.absolute(a[0]) / self.MAX_VEL + np.absolute(a[1]) / self.MAX_ANG_VEL )
         return g * rtv
 
-    def _render(self, mode='human', close=False):
-        if close:
-            if self.viewer is not None:
-                self.viewer.close()
-                self.viewer = None
-            return
-        from gym.envs.classic_control import rendering
+    def _angle_normalize(self, x):
+        return (((x+np.pi) % (2*np.pi)) - np.pi)
 
+    def render(self, mode='human'):
         s = self.state
 
         if self.viewer is None:
             self.viewer = rendering.Viewer(500,500)
             self.viewer.set_bounds(-self.MAX_POS,self.MAX_POS,-self.MAX_POS,self.MAX_POS)
-
 
         self.viewer.draw_line((-self.MAX_POS, 0), (self.MAX_POS, 0))
         self.viewer.draw_line((0, -self.MAX_POS), (0, self.MAX_POS))
@@ -190,5 +183,5 @@ class MoveFormFixEnv(gym.Env):
 
         return self.viewer.render(return_rgb_array = mode=='rgb_array')
 
-def angle_normalize(x):
-    return (((x+np.pi) % (2*np.pi)) - np.pi)
+    def close(self):
+        if self.viewer: self.viewer.close()
