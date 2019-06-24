@@ -12,3 +12,8 @@ register(
     id='MoveFormMA-v1',
     entry_point='gym_multiagent.envs:MoveFormSinEnv',
 )
+
+register(
+    id='CompetitiveMA-v0',
+    entry_point='gym_multiagent.envs:CompetitiveEnv',
+)
