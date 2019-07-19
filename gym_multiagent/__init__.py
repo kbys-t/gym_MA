@@ -17,3 +17,8 @@ register(
     id='CompetitiveMA-v0',
     entry_point='gym_multiagent.envs:CompetitiveEnv',
 )
+
+register(
+    id='PersonalSpaceMA-v0',
+    entry_point='gym_multiagent.envs:PersonalSpaceEnv',
+)
